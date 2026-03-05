@@ -30,7 +30,7 @@ services:
       driver: json-file
       options:
         max-size: "50m"
-        max-files: "5"
+        max-file: "5"
 
 volumes:
   postgres_data:
