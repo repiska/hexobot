@@ -438,7 +438,7 @@
 
                    ;; Wizard guard: intercept admin_campaigns/admin_menu while in wizard state
                    (and is-admin
-                        (contains? #{:admin_campaign_name :admin_campaign_code :admin_campaign_expires
+                        (contains? #{:admin_campaign_name :admin_campaign_code :admin_campaign_description :admin_campaign_expires
                                      :admin_campaign_edit_name :admin_campaign_edit_code :admin_campaign_edit_expires}
                                    user-state)
                         (contains? #{"admin_campaigns" "admin_menu"} callback-data))
@@ -469,6 +469,8 @@
                                                 (msg/admin-campaign-step-keyboard nil)
                                                 (:admin_campaign_code :admin_campaign_edit_code)
                                                 (msg/admin-campaign-step-keyboard nil)
+                                                (:admin_campaign_description)
+                                                (msg/admin-campaign-step-keyboard "campaign_skip_description")
                                                 (:admin_campaign_expires)
                                                 (msg/admin-campaign-step-keyboard "campaign_skip_expires")
                                                 (:admin_campaign_edit_expires)
@@ -756,6 +758,15 @@
                                     :keyboard (msg/admin-campaigns-keyboard campaigns))]
                       :state-update nil})
 
+                   ;; Wizard: skip description → ask expires
+                   (and is-admin (= callback-data "campaign_skip_description"))
+                   (let [wizard (get-in user [:state-data :campaign-wizard] {})]
+                     {:responses [(router/text-response (:user-id message)
+                                    (msg/t :admin-campaign-enter-expires)
+                                    :keyboard (msg/admin-campaign-step-keyboard "campaign_skip_expires"))]
+                      :state-update {:state :admin_campaign_expires
+                                     :state-data {:campaign-wizard wizard}}})
+
                    ;; Wizard: skip expires → show confirm summary
                    (and is-admin (= callback-data "campaign_skip_expires"))
                    (let [wizard (get-in user [:state-data :campaign-wizard] {})]
@@ -779,6 +790,7 @@
                          (repo-ports/create-campaign! promo-repo
                            {:name         (:name wizard)
                             :promo-code   (:code wizard)
+                            :description  (:description wizard)
                             :expires-at   expires-at})
                          (log/info "Admin created campaign:" (:name wizard))
                          (let [campaigns (repo-ports/list-campaigns promo-repo)]
@@ -804,11 +816,22 @@
                       :state-update {:state :admin_campaign_code
                                      :state-data {:campaign-wizard wizard}}})
 
-                   ;; Wizard text: code input → step 3: expires
+                   ;; Wizard text: code input → step 3: description
                    (and is-admin (= user-state :admin_campaign_code)
                         (get-in message [:content :text]))
                    (let [code   (str/trim (str/upper-case (get-in message [:content :text])))
                          wizard (assoc (get-in user [:state-data :campaign-wizard] {}) :code code)]
+                     {:responses [(router/text-response (:user-id message)
+                                    (msg/t :admin-campaign-enter-description)
+                                    :keyboard (msg/admin-campaign-step-keyboard "campaign_skip_description"))]
+                      :state-update {:state :admin_campaign_description
+                                     :state-data {:campaign-wizard wizard}}})
+
+                   ;; Wizard text: description input → step 4: expires
+                   (and is-admin (= user-state :admin_campaign_description)
+                        (get-in message [:content :text]))
+                   (let [desc   (str/trim (get-in message [:content :text]))
+                         wizard (assoc (get-in user [:state-data :campaign-wizard] {}) :description desc)]
                      {:responses [(router/text-response (:user-id message)
                                     (msg/t :admin-campaign-enter-expires)
                                     :keyboard (msg/admin-campaign-step-keyboard "campaign_skip_expires"))]

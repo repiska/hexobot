@@ -41,12 +41,12 @@
   "Valid states for the Finite State Machine"
   [:enum :idle :waiting_support :chat_mode :waiting_review :review_confirm :review_editing
    :waiting_email
-   :admin_campaign_name :admin_campaign_code :admin_campaign_expires
+   :admin_campaign_name :admin_campaign_code :admin_campaign_description :admin_campaign_expires
    :admin_campaign_edit_name :admin_campaign_edit_code :admin_campaign_edit_expires])
 
 (def valid-states #{:idle :waiting_support :chat_mode :waiting_review :review_confirm :review_editing
                     :waiting_email
-                    :admin_campaign_name :admin_campaign_code :admin_campaign_expires
+                    :admin_campaign_name :admin_campaign_code :admin_campaign_description :admin_campaign_expires
                     :admin_campaign_edit_name :admin_campaign_edit_code :admin_campaign_edit_expires})
 
 (def empty-state-data

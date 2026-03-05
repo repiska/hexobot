@@ -23,15 +23,17 @@
       ;; Telegram user (format: telegram_userId)
       (str/starts-with? user-id "telegram_")
       (let [original-id (subs user-id 9)
-            admin-id (get-in config [:platforms :telegram :admin-id])]
-        (and admin-id (= (str original-id) (str admin-id))))
+            admin-id    (get-in config [:platforms :telegram :admin-id])
+            admin-ids   (when admin-id (set (map str/trim (str/split (str admin-id) #","))))]
+        (contains? admin-ids (str original-id)))
 
       ;; MAX user (format: max_userId_chatId)
       (str/starts-with? user-id "max_")
-      (let [parts (str/split user-id #"_")
+      (let [parts       (str/split user-id #"_")
             original-id (second parts)
-            admin-id (get-in config [:platforms :max :admin-id])]
-        (and admin-id (= (str original-id) (str admin-id))))
+            admin-id    (get-in config [:platforms :max :admin-id])
+            admin-ids   (when admin-id (set (map str/trim (str/split (str admin-id) #","))))]
+        (contains? admin-ids (str original-id)))
 
       ;; Unknown platform
       :else false)))
@@ -115,7 +117,7 @@
   "Format a single campaign as a numbered line for the list view.
    Note: arg order is [idx campaign] to match map-indexed."
   [idx campaign]
-  (let [{:keys [name is-active max-uses usage-count expires-at promo-code]} campaign
+  (let [{:keys [name is-active max-uses usage-count expires-at promo-code description]} campaign
         status-emoji (if is-active "🟢" "🔴")
         code-str     (if promo-code (str "`" promo-code "`") "—")
         usage-str    (if max-uses
@@ -125,7 +127,9 @@
                        (str "до " d)
                        "без срока")]
     (str (inc idx) ". " status-emoji " *" name "*"
-         "\n   " code-str " · " usage-str " · " expiry-str)))
+         "\n   " code-str " · " usage-str " · " expiry-str
+         (when (not (str/blank? description))
+           (str "\n   📝 " description)))))
 
 (defn format-campaigns-text
   "Format all campaigns as admin message text."
@@ -139,10 +143,11 @@
 (defn format-campaign-wizard-summary
   "Format wizard state data as confirmation text before campaign creation."
   [wizard]
-  (let [{:keys [name code expires-at]} wizard]
+  (let [{:keys [name code description expires-at]} wizard]
     (str "📋 *Подтвердите создание кампании:*\n\n"
          "📌 Название: *" name "*\n"
          "🎁 Промокод: `" code "`\n"
+         (when description (str "📝 Описание: " description "\n"))
          "📅 Срок: " (or expires-at "Без ограничений"))))
 
 (defn format-campaign-edit-summary
