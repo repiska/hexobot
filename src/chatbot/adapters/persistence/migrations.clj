@@ -2,8 +2,12 @@
   "Simple migration runner. Tracks applied migrations in schema_migrations table."
   (:require [next.jdbc :as jdbc]
             [clojure.java.io :as io]
-            [clojure.string :as str]
             [clojure.tools.logging :as log]))
+
+;; Ordered list of migration files — add new entries here when creating migrations.
+(def ^:private migrations
+  ["001_init.sql"
+   "002_email_promo.sql"])
 
 (defn- ensure-migrations-table! [ds]
   (jdbc/execute! ds ["
@@ -17,16 +21,8 @@
        (map :schema_migrations/filename)
        set))
 
-(defn- migration-files []
-  (when-let [dir (io/resource "migrations")]
-    (->> (io/file dir)
-         .listFiles
-         (filter #(str/ends-with? (.getName %) ".sql"))
-         (sort-by #(.getName %)))))
-
-(defn- apply-migration! [ds ^java.io.File file]
-  (let [sql      (slurp file)
-        filename (.getName file)]
+(defn- apply-migration! [ds filename url]
+  (let [sql (slurp url)]
     (log/info "Applying migration:" filename)
     (with-open [conn (jdbc/get-connection ds)]
       (.setAutoCommit conn false)
@@ -47,9 +43,12 @@
   (log/info "Running database migrations...")
   (ensure-migrations-table! ds)
   (let [applied (applied-migrations ds)
-        pending (remove #(contains? applied (.getName %)) (migration-files))]
+        pending (->> migrations
+                     (remove applied)
+                     (map (fn [f] [f (io/resource (str "migrations/" f))]))
+                     (filter (fn [[_ url]] (some? url))))]
     (if (seq pending)
-      (doseq [f pending]
-        (apply-migration! ds f))
+      (doseq [[filename url] pending]
+        (apply-migration! ds filename url))
       (log/info "All migrations already applied"))
     (log/info (str "Migrations complete. Applied " (count pending) " new migration(s)"))))
