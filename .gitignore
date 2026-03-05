@@ -1,0 +1,34 @@
+# Clojure
+.cpcache/
+.nrepl-port
+*.jar
+target/
+
+# Claude Code
+.claude/
+
+# Internal docs (architecture, planning)
+docs/
+
+# Environment — never commit real secrets
+.env
+.env.local
+.env.*.local
+.env.prod
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.calva/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# MCP local config
+.mcp.json

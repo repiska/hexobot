@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: chatbot-postgres
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER:-chatbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB:       ${POSTGRES_DB:-chatbot_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chatbot} -d ${POSTGRES_DB:-chatbot_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  bot:
+    image: ${DOCKER_IMAGE:-ghcr.io/repiska/hexobot:latest}
+    container_name: chatbot-bot
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      # Override DB URL to use Docker Compose internal hostname
+      APP_DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-chatbot_db}?user=${POSTGRES_USER:-chatbot}&password=${POSTGRES_PASSWORD}
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-files: "5"
+
+volumes:
+  postgres_data:
